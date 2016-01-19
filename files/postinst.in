@@ -1,0 +1,105 @@
+#!/bin/sh
+#
+# Simple postinst script for guacd which creates a "guacd" user and group
+# and sets the permissions and ownership of /var/run/guacd (the location
+# of the guacd.pid file) and /usr/share/guacd (the home directory of the
+# guacd user).
+#
+
+
+# Exit on errors
+#set -x
+
+# Use debconf
+#. /usr/share/debconf/confmodule
+
+GUACD_USER="guacd"              # guacd username
+GUACD_GROUP="guacd"             # guacd group
+GUACD_HOME="@INST_PREFIX@/share/guacd"   # guacd home directory
+
+GUAC_GROUP="guacamole-web"
+GUAC_FILES="/etc/guacamole/user-mapping.xml"
+GUAC_FILE_OWNERSHIP="root:$GUAC_GROUP"
+GUAC_FILE_MOD="640"
+
+SC_USER="tomcat7"
+
+# Convenience function for error conditions.
+fail() {
+    echo "$1" >&2
+    exit 1
+}
+
+# Convenience function for setting ownership and permissions of files while
+# failing cleanly.
+set_perms() {
+
+    FILE="$1"
+    PERMS="$2"
+
+    # Update ownership
+    chown "$GUACD_USER:$GUACD_GROUP" $FILE ||\
+        fail "Unable to change ownership of $FILE"
+
+    # Update permissions
+    chmod "$PERMS" $FILE ||\
+        fail "Unable to change permissions of $FILE"
+
+}
+
+# Create guacd group if it does not exist
+groupadd -fr "$GUACD_GROUP" ||\
+    fail "Could not create group \"$GUACD_GROUP\""
+
+# Create guacd user if it does not exist
+useradd -g "$GUACD_GROUP" -d "$GUACD_HOME" -s /bin/false -r "$GUACD_USER" || (
+    if [ "$?" != "9" ]
+    then
+        fail "Could not create user \"$GUACD_USER\""
+    fi
+)
+
+# Create guacamole-web group if it does not exist
+groupadd -fr "$GUAC_GROUP" ||\
+    fail "Could not create group \"$GUAC_GROUP\""
+
+# Change ownership and permissions of Guacamole files
+for FILE in $GUAC_FILES
+do
+
+    # Update ownership
+    chown "$GUAC_FILE_OWNERSHIP" "$FILE" ||\
+        fail "Unable to change ownership of $FILE"
+
+    # Update permissions
+    chmod "$GUAC_FILE_MOD" "$FILE" ||\
+        fail "Unable to change permissions of $FILE"
+
+done
+
+# Add servlet container user to guacamole group
+usermod --append -G "$GUAC_GROUP" "$SC_USER" ||\
+    fail "Could not add $SC_USER to group \"$GUAC_GROUP\""
+
+# Restart Tomcat if asked
+#db_get guacamole-madisa/restart-server
+#if [ "$RET" = "true" ]
+#then
+    invoke-rc.d tomcat7 restart
+#fi
+
+# Home directory should only be readable by guacd.
+set_perms "$GUACD_HOME" 700
+
+# Automatically added by dh_installinit
+if [ -x "/etc/init.d/guacd" ] || [ -e "/etc/init/guacd.conf" ]; then
+	if [ ! -e "/etc/init/guacd.conf" ]; then
+		update-rc.d guacd defaults >/dev/null
+	fi
+	invoke-rc.d guacd start || exit $?
+fi
+# End automatically added section
+
+
+# Exit successfully
+exit 0
