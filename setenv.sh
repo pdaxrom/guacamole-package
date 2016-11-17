@@ -1,1 +1,1 @@
-INST_PREFIX=/opt/madisa
+INST_PREFIX=/opt/guacamole-madisa

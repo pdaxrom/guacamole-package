@@ -221,7 +221,7 @@ check_and_install_packages() {
 }
 
 
-check_and_install_packages build-essential m4 pkg-config libtool maven2 libcairo2-dev libjpeg-turbo8-dev libpng12-dev libossp-uuid-dev libfreerdp-dev libpango1.0-dev libssh2-1-dev libtelnet-dev libvncserver-dev libpulse-dev libssl-dev libvorbis-dev libwebp-dev
+check_and_install_packages build-essential m4 pkg-config libtool maven2 libcairo2-dev libjpeg-turbo8-dev libpng12-dev libossp-uuid-dev libfreerdp-dev libpango1.0-dev libssh2-1-dev libtelnet-dev libvncserver-dev libpulse-dev libssl-dev libvorbis-dev libwebp-dev libavcodec-dev libavutil-dev libswscale-dev
 
 mkdir -p tmp/build
 cd tmp
@@ -234,7 +234,8 @@ DEB_VERSION=$(cat guacamole-server/configure.ac | grep '\[guacamole-server\]' | 
 build nodir guacamole-server --with-init-dir=${INST_PREFIX}/etc/init.d
 cd guacamole-client
 mvn package || error "build guacamole-client"
-install -D -m 644 guacamole/target/guacamole-${DEB_VERSION}.war ${INST_PREFIX}/var/lib/guacamole/guacamole.war
+install -D -m 644 guacamole/target/guacamole-${DEB_VERSION}-incubating.war ${INST_PREFIX}/var/lib/guacamole/guacamole.war
+
 mvn clean
 cd ..
 
@@ -380,7 +381,9 @@ pushd $DEB_DIR
 
 DEB_DEPENDS=$(dpkg-shlibdeps $(find . -executable -type f) --ignore-missing-info -O 2>/dev/null | sed 's/shlibs:Depends=//')
 
-sed -i -e "s|@DEB_DEPENDS@|${DEB_DEPENDS}|" ${DEB_DIR}/debian/control
+echo "----- $DEB_DEPENDS"
+
+sed -i -e "s/@DEB_DEPENDS@/${DEB_DEPENDS}/" ${DEB_DIR}/debian/control
 
 popd
 
